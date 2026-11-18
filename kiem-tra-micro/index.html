@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Kiểm tra micro</title>
+<style>
+:root{--bg:#eef4f6;--card:#fff;--ink:#123b45;--mut:#5b7a83;--line:#cfe0e4;--accent:#0f6b7a;--ok:#0a7a4a;--bad:#b4232c;color-scheme:light}
+@media(prefers-color-scheme:dark){:root{--bg:#0d1c21;--card:#13272e;--ink:#e4eef1;--mut:#9ab4bb;--line:#27454f;--accent:#6fd0e0;--ok:#5fd6a0;--bad:#ff8c93;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.55;
+ padding-block:24px 60px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1{margin:0;font-size:1.5rem}
+.lede{margin:0;color:var(--mut)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1.5px solid var(--line);background:var(--card);color:var(--ink);padding:12px 18px;min-height:52px}
+button.big{background:var(--accent);color:#fff;border-color:var(--accent);font-size:1.1rem;font-weight:700;width:100%}
+@media(prefers-color-scheme:dark){button.big{color:#0d1c21}}
+button:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.row button{flex:1;min-width:140px}
+#log{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;white-space:pre-wrap;word-break:break-word;
+ background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:12px;min-height:60px}
+.ok{color:var(--ok);font-weight:700}
+.bad{color:var(--bad);font-weight:700}
+.meter{height:14px;background:var(--line);border-radius:8px;overflow:hidden;margin-top:12px}
+.meter i{display:block;height:100%;width:0;background:var(--ok);transition:width .08s}
+.step{font-weight:700;margin:0 0 6px}
+small{color:var(--mut)}
+</style>
+</head>
+<body>
+<main>
+  <h1>🎙 Kiểm tra micro</h1>
+  <p class="lede">Trang này chỉ làm một việc: thử xem máy có ghi âm được không, và nếu không thì vì sao.
+  Em bấm nút to màu xanh, nói vài chữ, rồi gửi ảnh chụp màn hình cho cô.</p>
+
+  <div class="card">
+    <p class="step">Bước 1 · Bấm nút này</p>
+    <button class="big" id="go">▶ Bắt đầu kiểm tra</button>
+    <div class="meter"><i id="bar"></i></div>
+    <div class="row">
+      <button id="play" disabled>🔊 Nghe lại</button>
+      <button id="copy" disabled>📋 Chép kết quả</button>
+    </div>
+    <div id="log">Chưa chạy.</div>
+    <p style="margin:10px 0 0"><small>Nếu máy hỏi cho phép dùng micro, em bấm <b>Cho phép</b> / <b>Allow</b>.</small></p>
+  </div>
+
+  <p class="lede"><small>Phiên bản: kiem-tra-micro 18-11-2026</small></p>
+</main>
+
+<script>
+(function(){
+var L=document.getElementById('log'), GO=document.getElementById('go'),
+    PLAY=document.getElementById('play'), COPY=document.getElementById('copy'), BAR=document.getElementById('bar');
+var lines=[], blobUrl=null;
+function w(t,cls){lines.push(t);L.innerHTML=lines.map(function(x){
+  return x.replace(/^✅/,'<span class="ok">✅</span>').replace(/^❌/,'<span class="bad">❌</span>');}).join('\n');}
+function name(e){return (e&&(e.name||e.message))||String(e);}
+
+var UA=navigator.userAgent||'';
+function inApp(){
+  var m=[[/Zalo/i,'Zalo'],[/FBAN|FBAV|FB_IAB|FBIOS/i,'Facebook'],[/Messenger/i,'Messenger'],
+         [/Instagram/i,'Instagram'],[/BytedanceWebview|musical_ly|TikTok/i,'TikTok'],
+         [/Line\//i,'Line'],[/MicroMessenger/i,'WeChat']];
+  for(var i=0;i<m.length;i++){if(m[i][0].test(UA))return m[i][1];}
+  return '';
+}
+function browser(){
+  if(/Edg\//.test(UA))return'Edge';
+  if(/OPR\//.test(UA))return'Opera';
+  if(/Chrome\//.test(UA)&&!/Chromium/.test(UA))return'Chrome';
+  if(/Firefox\//.test(UA))return'Firefox';
+  if(/Safari\//.test(UA))return'Safari';
+  return'Không rõ';
+}
+function os(){
+  if(/iPad|iPhone|iPod/.test(UA))return'iPhone/iPad';
+  if(/Android/.test(UA))return'Android';
+  if(/Windows/.test(UA))return'Windows';
+  if(/Mac OS X/.test(UA))return'Mac';
+  return'Không rõ';
+}
+
+GO.onclick=async function(){
+  lines=[];L.textContent='';GO.disabled=true;PLAY.disabled=true;COPY.disabled=false;
+  w('Máy: '+os()+' · Trình duyệt: '+browser());
+  var ia=inApp();
+  if(ia){w('❌ Đang mở trong ứng dụng '+ia+'. Ứng dụng này KHÔNG cho dùng micro.');
+         w('   Cách sửa: bấm dấu ⋯ hoặc ⋮ ở góc màn hình → "Mở bằng trình duyệt".');}
+  else {w('✅ Không phải trình duyệt trong ứng dụng.');}
+
+  w(window.isSecureContext?'✅ Trang chạy https (an toàn).':'❌ Trang KHÔNG chạy https nên trình duyệt chặn micro.');
+  w(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia?'✅ Trình duyệt có hàm xin micro.':'❌ Trình duyệt KHÔNG có hàm xin micro (bản quá cũ).');
+  w(window.MediaRecorder?'✅ Trình duyệt có bộ ghi âm.':'❌ Trình duyệt KHÔNG có bộ ghi âm (iOS cũ hơn 14.3).');
+
+  if(navigator.permissions&&navigator.permissions.query){
+    try{var p=await navigator.permissions.query({name:'microphone'});
+        w('ℹ️ Quyền micro hiện tại: '+p.state);}catch(e){}
+  }
+
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder){
+    w('→ Dừng ở đây. Em đổi sang Chrome (Android/máy tính) hoặc Safari (iPhone) rồi thử lại.');GO.disabled=false;return;}
+
+  var tries=[{audio:{echoCancellation:true,noiseSuppression:true}},{audio:true},{audio:{deviceId:'default'}}];
+  var stream=null,lastErr=null;
+  for(var i=0;i<tries.length;i++){
+    try{stream=await navigator.mediaDevices.getUserMedia(tries[i]);
+        w('✅ Mở được micro ở cách thử số '+(i+1)+'.');break;}
+    catch(e){lastErr=e;w('❌ Cách thử '+(i+1)+' hỏng: '+name(e));}
+  }
+
+  try{var devs=await navigator.mediaDevices.enumerateDevices();
+      var ins=devs.filter(function(d){return d.kind==='audioinput';});
+      w('ℹ️ Máy thấy '+ins.length+' micro'+(ins.length&&ins[0].label?': '+ins.map(function(d){return d.label;}).filter(Boolean).join(' | '):' (chưa biết tên)')+'.');
+  }catch(e){}
+
+  if(!stream){
+    var n=name(lastErr);
+    w('→ KHÔNG mở được micro. Mã lỗi: '+n);
+    if(n==='NotAllowedError'||n==='SecurityError')
+      w('   Em chưa cho phép. iPhone: bấm aA cạnh thanh địa chỉ → Cài đặt trang web → Micrô → Cho phép. Android/máy tính: bấm 🔒 cạnh thanh địa chỉ → bật Micrô. Rồi tải lại trang.');
+    else if(n==='NotFoundError')
+      w('   Máy không có micro nào. Cắm tai nghe có micro rồi thử lại.');
+    else if(n==='NotReadableError'||n==='AbortError')
+      w('   Hệ điều hành đang khoá micro. Windows: Cài đặt → Quyền riêng tư và bảo mật → Micrô → bật CẢ HAI mục, rồi đóng hẳn trình duyệt và mở lại. Mac: Cài đặt hệ thống → Quyền riêng tư & Bảo mật → Micrô → bật cho trình duyệt.');
+    GO.disabled=false;return;
+  }
+
+  var ctxA=null;
+  try{
+    var AC=window.AudioContext||window.webkitAudioContext;
+    if(AC){ctxA=new AC();var src=ctxA.createMediaStreamSource(stream);var an=ctxA.createAnalyser();
+      an.fftSize=512;src.connect(an);var buf=new Uint8Array(an.fftSize);var peak=0;
+      var t=setInterval(function(){an.getByteTimeDomainData(buf);var mx=0;
+        for(var k=0;k<buf.length;k++){var v=Math.abs(buf[k]-128);if(v>mx)mx=v;}
+        peak=Math.max(peak,mx);BAR.style.width=Math.min(100,mx/64*100)+'%';},80);
+      setTimeout(function(){clearInterval(t);BAR.style.width='0%';
+        w(peak>3?'✅ Máy NGHE THẤY tiếng em (mức '+peak+').':'❌ Máy không nghe thấy tiếng nào. Micro có thể đang bị tắt tiếng, hoặc chọn nhầm thiết bị.');},5200);
+    }
+  }catch(e){}
+
+  var mimes=['audio/webm;codecs=opus','audio/mp4','audio/webm','audio/ogg'],mime='';
+  for(var j=0;j<mimes.length;j++){
+    if(window.MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(mimes[j])){mime=mimes[j];break;}}
+  w('ℹ️ Kiểu file ghi âm: '+(mime||'mặc định của máy'));
+
+  var mr;
+  try{mr=mime?new MediaRecorder(stream,{mimeType:mime}):new MediaRecorder(stream);}
+  catch(e){w('❌ Không tạo được bộ ghi âm: '+name(e));
+           try{mr=new MediaRecorder(stream);w('✅ Tạo được bằng cách mặc định.');}
+           catch(e2){w('❌ Cả cách mặc định cũng hỏng: '+name(e2));
+                     stream.getTracks().forEach(function(t){t.stop();});GO.disabled=false;return;}}
+
+  var chunks=[];
+  mr.ondataavailable=function(e){if(e.data&&e.data.size)chunks.push(e.data);};
+  mr.onerror=function(e){w('❌ Lỗi trong lúc ghi: '+name(e.error||e));};
+  mr.onstop=function(){
+    stream.getTracks().forEach(function(t){t.stop();});
+    if(ctxA){try{ctxA.close();}catch(e){}}
+    var size=chunks.reduce(function(a,c){return a+c.size;},0);
+    if(!size){w('❌ Ghi xong nhưng file RỖNG. Micro mở được nhưng không thu được tiếng.');GO.disabled=false;return;}
+    var b=new Blob(chunks,{type:mr.mimeType||mime||'audio/webm'});
+    if(blobUrl)URL.revokeObjectURL(blobUrl);
+    blobUrl=URL.createObjectURL(b);
+    w('✅ GHI ÂM THÀNH CÔNG. File '+Math.round(size/1024)+' KB.');
+    w('→ Máy này ghi âm được. Em bấm "Nghe lại" để nghe thử.');
+    PLAY.disabled=false;GO.disabled=false;
+  };
+
+  try{mr.start();w('✅ Đã bắt đầu ghi. Em nói to trong 5 giây: "Hello, my name is…"');}
+  catch(e){w('❌ Không bắt đầu ghi được: '+name(e));
+           stream.getTracks().forEach(function(t){t.stop();});GO.disabled=false;return;}
+
+  var left=5;GO.textContent='● Đang ghi… '+left+'s';
+  var cd=setInterval(function(){left--;GO.textContent='● Đang ghi… '+left+'s';
+    if(left<=0){clearInterval(cd);GO.textContent='▶ Kiểm tra lại';
+      try{mr.stop();}catch(e){w('❌ Không dừng được: '+name(e));GO.disabled=false;}}},1000);
+};
+
+PLAY.onclick=function(){if(blobUrl){var a=new Audio(blobUrl);a.play().catch(function(e){w('❌ Không phát lại được: '+name(e));});}};
+COPY.onclick=function(){
+  var t=lines.join('\n');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(t).then(function(){COPY.textContent='✅ Đã chép';},
+      function(){sel();});
+  } else sel();
+  function sel(){var r=document.createRange();r.selectNodeContents(L);
+    var s=window.getSelection();s.removeAllRanges();s.addRange(r);COPY.textContent='Bôi đen rồi, em bấm Copy';}
+};
+})();
+</script>
+</body>
+</html>
