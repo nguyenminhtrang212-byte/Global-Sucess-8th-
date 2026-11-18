@@ -299,7 +299,7 @@ td,th{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertic
   <div>
     <h1>Bài 1 · Nhà sàn và dân tộc</h1>
     <p class="sub">Global Success 8 – Unit 4. Khoảng 30 phút: 10 từ mới, âm /k/ – /g/, danh từ đếm được, nói ý kiến và viết một lá thư ngắn.</p>
-    <p class="verline" style="font-size:12px;opacity:.75;margin:6px 0 0">Phiên bản trang: ban 18-11-2026 #5</p>
+    <p class="verline" style="font-size:12px;opacity:.75;margin:6px 0 0">Phiên bản trang: ban 18-11-2026 #6</p>
     <div class="cue">
       <b>Cách học:</b>
       <ul>
@@ -474,7 +474,7 @@ td,th{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertic
     <input type="text" id="gateName" placeholder="Họ và tên" autocomplete="name">
     <button class="b primary" id="gateGo" style="font-size:18px;padding:10px 20px;margin-top:12px">Bắt đầu học ▶</button>
     <p class="tip" style="color:var(--muted)">🎙 Khi máy hỏi dùng micro, em bấm <b>Cho phép</b> (Allow).</p>
-    <p style="color:var(--muted);font-size:12px;margin-top:10px">Phiên bản trang: <b id="buildver">ban 18-11-2026 #5</b></p>
+    <p style="color:var(--muted);font-size:12px;margin-top:10px">Phiên bản trang: <b id="buildver">ban 18-11-2026 #6</b></p>
   </div>
 </div>
 <div class="warn" id="noUrl" hidden style="position:fixed;top:0;left:0;right:0;z-index:30;border-radius:0;text-align:center">⚙️ Thầy/cô chưa dán link nhận bài (SCRIPT_URL) vào trang này, nên bài chưa gửi được.</div>
@@ -789,7 +789,7 @@ function micErrText(e){
     ?'Em chưa cho phép micro. Trên iPhone: bấm chữ <b>aA</b> bên trái thanh địa chỉ → <b>Cài đặt trang web</b> → <b>Micrô</b> → <b>Cho phép</b>, rồi tải lại trang.'
     :'Em chưa cho phép micro. Bấm biểu tượng <b>🔒</b> (hoặc 🎙) bên trái thanh địa chỉ → bật <b>Micrô</b> → tải lại trang rồi thử lại.';
   if(n==='NotFoundError'||n==='OverconstrainedError')return'Máy không tìm thấy micro nào. Em kiểm tra tai nghe đã cắm chưa, hoặc thử máy khác.';
-  if(n==='NotReadableError'||n==='AbortError')return'Máy thấy micro nhưng chưa mở được. Thường là do <b>hệ điều hành đang khoá micro</b>, không phải do bài học.<br><b>Windows:</b> Cài đặt → Quyền riêng tư và bảo mật → Micrô → bật <b>cả hai</b> mục “Cho phép ứng dụng truy nhập micrô” và “Cho phép ứng dụng trên máy tính truy nhập micrô”. Sau đó <b>đóng hẳn trình duyệt rồi mở lại</b>.<br><b>Mac:</b> Cài đặt hệ thống → Quyền riêng tư &amp; Bảo mật → Micrô → bật cho trình duyệt.<br>Nếu vẫn chưa được: đóng Zoom, Zalo, Teams, ứng dụng ghi âm; hoặc cắm lại tai nghe rồi tải lại trang.';
+  if(n==='NotReadableError'||n==='AbortError')return'Máy thấy micro nhưng chưa mở được.<br><b>Thử trước tiên:</b> đóng hết các tab khác đang mở bài học hoặc trang kiểm tra micro — mỗi lúc chỉ một trang được dùng micro. Rồi tải lại trang này.<br>Nếu vẫn chưa được thì do <b>hệ điều hành đang khoá micro</b>:<br><b>Windows:</b> Cài đặt → Quyền riêng tư và bảo mật → Micrô → bật <b>cả hai</b> mục “Cho phép ứng dụng truy nhập micrô” và “Cho phép ứng dụng trên máy tính truy nhập micrô”. Sau đó <b>đóng hẳn trình duyệt rồi mở lại</b>.<br><b>Mac:</b> Cài đặt hệ thống → Quyền riêng tư &amp; Bảo mật → Micrô → bật cho trình duyệt.<br>Nếu vẫn chưa được: đóng Zoom, Zalo, Teams, ứng dụng ghi âm; hoặc cắm lại tai nghe rồi tải lại trang.';
   return'Chưa mở được micro'+(n?' ('+n+')':'')+'. Em tải lại trang rồi thử lại, hoặc đổi sang '+(IOS?'Safari':'Chrome')+'.';
 }
 function micBanner(){
@@ -823,6 +823,9 @@ async function getStream(){if(STREAM&&STREAM.active)return STREAM;
   const tries=[{audio:{echoCancellation:true,noiseSuppression:true}},{audio:true},{audio:{deviceId:'default'}}];
   let last;for(const c of tries){try{STREAM=await navigator.mediaDevices.getUserMedia(c);return STREAM;}catch(e){last=e;}}
   throw last;}
+function releaseMic(){try{if(STREAM)STREAM.getTracks().forEach(t=>t.stop());}catch(_){}STREAM=null;}
+window.addEventListener('pagehide',releaseMic);
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&!ACTIVE)releaseMic();});
 function pickMime(){if(!window.MediaRecorder)return'';for(const m of['audio/webm;codecs=opus','audio/mp4','audio/webm','audio/ogg'])if(MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(m))return m;return'';}
 async function startRec(ctx){
   if(!ACTIVE&&!String(ctx.target||'').trim()){ctx.ui.msg('Em hãy gõ câu trả lời trước rồi mới ghi âm nhé.');return;}
@@ -833,7 +836,7 @@ async function startRec(ctx){
   const mime=pickMime();let mr;try{const o={audioBitsPerSecond:48000};if(mime)o.mimeType=mime;mr=new MediaRecorder(s,o);}catch(e){mr=new MediaRecorder(s);}
   const st={ctx,mr,chunks:[],finals:[],interim:'',t0:Date.now(),stopping:false,mrDone:false,recDone:!SR};
   mr.ondataavailable=e=>{if(e.data&&e.data.size)st.chunks.push(e.data);};
-  mr.onstop=()=>{st.blob=new Blob(st.chunks,{type:mr.mimeType||'audio/webm'});st.mrDone=true;finish(st);};
+  mr.onstop=()=>{st.blob=new Blob(st.chunks,{type:mr.mimeType||'audio/webm'});releaseMic();st.mrDone=true;finish(st);};
   if(SR){
     const r=new SR();r.lang='en-US';r.continuous=true;r.interimResults=true;r.maxAlternatives=1;
     r.onresult=e=>{let inter='';for(let i=e.resultIndex;i<e.results.length;i++){const res=e.results[i];if(res.isFinal)st.finals.push(res[0].transcript);else inter+=res[0].transcript;}st.interim=inter;ctx.ui.live((st.finals.join(' ')+' '+inter).trim());};
