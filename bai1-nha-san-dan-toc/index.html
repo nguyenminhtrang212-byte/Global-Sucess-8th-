@@ -768,11 +768,12 @@ function stopSpeak(){speakSeq.cur=null;synth&&synth.cancel();}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-say]');if(b){speak(b.dataset.say,{slow:true});}});
 
 /* ================= RECORDING ================= */
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 /* ===== Chẩn đoán micro ===== */
 const UA=navigator.userAgent||'';
 const INAPP=(()=>{const m=[[/Zalo/i,'Zalo'],[/FBAN|FBAV|FB_IAB|FBIOS/i,'Facebook'],[/Messenger/i,'Messenger'],[/Instagram/i,'Instagram'],[/BytedanceWebview|musical_ly|TikTok/i,'TikTok'],[/Line\//i,'Line'],[/MicroMessenger/i,'WeChat']];for(const[re,n]of m)if(re.test(UA))return n;return'';})();
 const IOS=/iPad|iPhone|iPod/.test(UA)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+/* Trên iPhone/iPad, bộ nhận dạng giọng nói giành micro với bộ ghi âm nên nút 🎙 có thể không chạy. Ưu tiên GHI ÂM. */
+const SR=IOS?null:(window.SpeechRecognition||window.webkitSpeechRecognition);
 function micDiag(){
   if(!window.isSecureContext)return{ok:false,code:'insecure',t:'Trang đang mở bằng địa chỉ không bảo mật nên trình duyệt chặn micro. Em mở lại bằng địa chỉ bắt đầu bằng <b>https://</b> nhé.'};
   if(INAPP)return{ok:false,code:'inapp',t:'Em đang mở bài trong ứng dụng <b>'+INAPP+'</b>. Ứng dụng này không cho dùng micro. Bấm dấu <b>⋯</b> (hoặc <b>⋮</b>) ở góc màn hình rồi chọn <b>“Mở bằng trình duyệt”</b> / <b>“Open in browser”</b>, hoặc chép link dán vào '+(IOS?'<b>Safari</b>':'<b>Chrome</b>')+'.'};
@@ -829,7 +830,8 @@ async function startRec(ctx){
     r.onend=()=>{if(!st.stopping&&!st.srFail){try{r.start();}catch(_){}}else{st.recDone=true;finish(st);}};
     st.r=r;try{r.start();}catch(_){st.srFail=true;st.recDone=true;}
   }
-  mr.start();ACTIVE=st;ctx.ui.setRec(true);
+  try{mr.start();}catch(e){try{if(st.r)st.r.stop();}catch(_){}try{s.getTracks().forEach(t=>t.stop());}catch(_){}STREAM=null;ctx.ui.msg('Máy chưa bắt đầu ghi được'+(e&&e.name?' ('+e.name+')':'')+'. Em tải lại trang rồi thử lại, hoặc đổi sang '+(IOS?'Safari':'Chrome')+'.');return;}
+  ACTIVE=st;ctx.ui.setRec(true);
   st.tick=setInterval(()=>{const sec=(Date.now()-st.t0)/1000;ctx.ui.tick(sec);if(sec>=ctx.maxSec)stopRec();},250);
 }
 function stopRec(){
@@ -897,7 +899,7 @@ function practice({key,label,target,targetFn,maxSec=20,compact=false,speakText,n
     if(a==='send'){if(!BLOBS[key])return;if(!stuName()){toast('Em ghi tên trước nhé (tab Nộp bài).');return;}enqueueUpload(key,BLOBS[key],RESULTS[key],ctx.ui.cloud);}
     if(a==='model'){if(Array.isArray(say))speakSeq(say);else speak(say);}
     if(a==='slow'){if(Array.isArray(say))speak(say.join(' '),{slow:true});else speak(say,{slow:true});}
-    if(a==='rec')startRec(ctx);
+    if(a==='rec')startRec(ctx).catch(err=>{try{ctx.ui.msg('Có lỗi khi ghi âm: '+((err&&(err.name||err.message))||err)+'. Em tải lại trang rồi thử lại.');}catch(_){}});
     if(a==='play'){const au=getAudio();if(au){stopSpeak();au.currentTime=0;au.play();}}
     if(a==='cmp'){const au=getAudio();if(!au)return;const after=()=>{au.currentTime=0;au.play();};
       if(Array.isArray(say))speakSeq(say,{onDone:after});else speak(say,{onend:()=>setTimeout(after,300)});}
@@ -1433,7 +1435,7 @@ $('#submitBtn').onclick=()=>trySubmit();
 })();
 
 micBanner();
-if(!SR){setTimeout(()=>toast('Máy này ghi âm được nhưng chưa tự chấm phát âm. Dùng Chrome để được chấm tự động.',6000),1500);}
+if(!SR){setTimeout(()=>toast(IOS?'Trên iPhone/iPad bài vẫn ghi âm và gửi bình thường, chỉ không tự chấm phát âm. Muốn được chấm tự động thì dùng Chrome trên máy tính hoặc Android.':'Máy này ghi âm được nhưng chưa tự chấm phát âm. Dùng Chrome để được chấm tự động.',7000),1500);}
 {const d0=micDiag();if(!d0.ok)setTimeout(()=>toast('⚠️ Máy này chưa ghi âm được – xem lời nhắc ở các bước có 🎙',8000),2500);}
 window.addEventListener('beforeunload',e=>{if(QUEUE.length||BUSY||ACTIVE){e.preventDefault();e.returnValue='';}});
 </script>
