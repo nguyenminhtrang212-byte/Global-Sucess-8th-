@@ -780,14 +780,14 @@ function micDiag(){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia||!window.MediaRecorder)return{ok:false,code:'nomr',t:'Trình duyệt này chưa ghi âm được. Em mở bài bằng <b>'+(IOS?'Safari':'Chrome')+'</b> (bản mới) rồi thử lại.'};
   return{ok:true,code:'ok',t:'Máy ghi âm được. Lần đầu bấm 🎙 em nhớ chọn <b>Cho phép</b> khi máy hỏi micro.'};
 }
-const plainTxt=s=>String(s).replace(/<[^>]*>/g,'');
+const plainTxt=s=>String(s).replace(/<br\s*\/?>/gi,' · ').replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim();
 function micErrText(e){
   const n=(e&&e.name)||'';
   if(n==='NotAllowedError'||n==='SecurityError')return IOS
     ?'Em chưa cho phép micro. Trên iPhone: bấm chữ <b>aA</b> bên trái thanh địa chỉ → <b>Cài đặt trang web</b> → <b>Micrô</b> → <b>Cho phép</b>, rồi tải lại trang.'
     :'Em chưa cho phép micro. Bấm biểu tượng <b>🔒</b> (hoặc 🎙) bên trái thanh địa chỉ → bật <b>Micrô</b> → tải lại trang rồi thử lại.';
   if(n==='NotFoundError'||n==='OverconstrainedError')return'Máy không tìm thấy micro nào. Em kiểm tra tai nghe đã cắm chưa, hoặc thử máy khác.';
-  if(n==='NotReadableError'||n==='AbortError')return'Micro đang bị ứng dụng khác dùng (Zoom, Zalo, ghi âm…). Em đóng ứng dụng đó rồi thử lại.';
+  if(n==='NotReadableError'||n==='AbortError')return'Máy thấy micro nhưng chưa mở được. Thường là do <b>hệ điều hành đang khoá micro</b>, không phải do bài học.<br><b>Windows:</b> Cài đặt → Quyền riêng tư và bảo mật → Micrô → bật <b>cả hai</b> mục “Cho phép ứng dụng truy nhập micrô” và “Cho phép ứng dụng trên máy tính truy nhập micrô”. Sau đó <b>đóng hẳn trình duyệt rồi mở lại</b>.<br><b>Mac:</b> Cài đặt hệ thống → Quyền riêng tư &amp; Bảo mật → Micrô → bật cho trình duyệt.<br>Nếu vẫn chưa được: đóng Zoom, Zalo, Teams, ứng dụng ghi âm; hoặc cắm lại tai nghe rồi tải lại trang.';
   return'Chưa mở được micro'+(n?' ('+n+')':'')+'. Em tải lại trang rồi thử lại, hoặc đổi sang '+(IOS?'Safari':'Chrome')+'.';
 }
 function micBanner(){
@@ -800,9 +800,14 @@ function micBanner(){
       const out=b.querySelector('[data-mic=out]');out.innerHTML=' Đang kiểm tra…';
       const d2=micDiag();
       if(!d2.ok){out.innerHTML='<br>❌ '+d2.t;return;}
-      try{const s=await navigator.mediaDevices.getUserMedia({audio:true});s.getTracks().forEach(t=>t.stop());
-        out.innerHTML='<br>✅ Micro dùng được. Em bấm 🎙 để ghi âm nhé.';}
-      catch(err){out.innerHTML='<br>❌ '+micErrText(err);}
+      let devs='';
+      try{const list=await navigator.mediaDevices.enumerateDevices();
+        const ins=list.filter(x=>x.kind==='audioinput');
+        devs='<br>🎚️ Máy thấy '+ins.length+' micro'+(ins.length&&ins[0].label?': '+ins.map(x=>x.label).filter(Boolean).join(' · '):'')+'.';
+      }catch(_){}
+      try{const s=await getStream();s.getTracks().forEach(t=>t.stop());STREAM=null;
+        out.innerHTML=devs+'<br>✅ Micro dùng được. Em bấm 🎙 để ghi âm nhé.';}
+      catch(err){out.innerHTML=devs+'<br>❌ '+micErrText(err)+'<br><small>Mã lỗi: '+((err&&err.name)||'?')+'</small>';}
     };
     p.insertBefore(b,p.children[2]||null);
   });
@@ -811,7 +816,11 @@ function micBanner(){
 const RESULTS=load('results',{}); // key -> {label,target,transcript,score,dur,self}
 const BLOBS={}; // key -> Blob (memory only)
 let STREAM=null,ACTIVE=null;
-async function getStream(){if(STREAM&&STREAM.active)return STREAM;STREAM=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true}});return STREAM;}
+async function getStream(){if(STREAM&&STREAM.active)return STREAM;
+  /* Một số máy Windows báo NotReadableError với ràng buộc lọc tiếng; thử lại kiểu đơn giản dần. */
+  const tries=[{audio:{echoCancellation:true,noiseSuppression:true}},{audio:true},{audio:{deviceId:'default'}}];
+  let last;for(const c of tries){try{STREAM=await navigator.mediaDevices.getUserMedia(c);return STREAM;}catch(e){last=e;}}
+  throw last;}
 function pickMime(){if(!window.MediaRecorder)return'';for(const m of['audio/webm;codecs=opus','audio/mp4','audio/webm','audio/ogg'])if(MediaRecorder.isTypeSupported&&MediaRecorder.isTypeSupported(m))return m;return'';}
 async function startRec(ctx){
   if(!ACTIVE&&!String(ctx.target||'').trim()){ctx.ui.msg('Em hãy gõ câu trả lời trước rồi mới ghi âm nhé.');return;}
